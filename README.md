@@ -31,6 +31,32 @@ clearly labelled in the UI).
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    user["👤 User<br/>(browser)"]
+
+    subgraph CF["☁️ Cloudflare (edge)"]
+        pages["Frontend — Cloudflare Pages<br/>Dashboard / · Admin /admin<br/>(HTML/CSS/JS · no CDNs)"]
+        fns["Backend — Pages Functions (API)<br/>/api/status · /api/history<br/>/api/alerts · /api/config"]
+        worker["Worker cron 'agc-p2p-cron'<br/>schedule */5 * * * *"]
+        d1[("Cloudflare D1<br/>SQLite serverless<br/>snapshots · alerts · config")]
+    end
+
+    binance["🌐 Binance P2P API<br/>(external · public)"]
+    demo["🧪 Demo generator<br/>(synthetic data)"]
+
+    user -->|HTTP| pages
+    pages -->|fetch JSON| fns
+    fns <-->|SQL read/write| d1
+    worker -->|1 · poll| binance
+    binance -. on failure .-> demo
+    demo -->|fallback = demo mode| worker
+    worker -->|2 · compute probability<br/>3 · store snapshot / alert| d1
+    worker -. browser / Telegram alerts .-> user
+```
+
+<details><summary>Detailed ASCII view</summary>
+
 ```
                          ┌──────────────────────────────────────────────┐
                          │                   USER                        │
@@ -59,6 +85,8 @@ clearly labelled in the UI).
              │   3. store snapshot  ·  raise alert if over threshold     │
              └───────────────────────────────────────────────────────────┘
 ```
+
+</details>
 
 ### Stack & rationale
 
