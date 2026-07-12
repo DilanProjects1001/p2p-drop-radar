@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
 
   // Sin D1 (apertura local sin binding): devuelve un snapshot sintético.
   if (!env || !env.DB) {
-    const snap = buildSyntheticSnapshot();
+    const snap = await buildSyntheticSnapshot(env);
     return json({ status: 'ok', mode: 'demo', ...snap, risk: riskLabel(snap.probability) });
   }
 
@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
     ).first();
 
     if (!row) {
-      const snap = buildSyntheticSnapshot();
+      const snap = await buildSyntheticSnapshot(env);
       return json({ status: 'ok', mode: 'demo', ...snap, risk: riskLabel(snap.probability) });
     }
 
@@ -49,7 +49,7 @@ export async function onRequestGet(context) {
     });
   } catch (err) {
     // Resiliencia: ante cualquier fallo de D1, snapshot sintético.
-    const snap = buildSyntheticSnapshot();
+    const snap = await buildSyntheticSnapshot(env);
     return json({
       status: 'ok',
       mode: 'demo',

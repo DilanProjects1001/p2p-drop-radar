@@ -11,10 +11,14 @@
 
 **https://agc-p2p-drop-radar.pages.dev**
 
+Rutas:
+- **Tablero:** `/` (index.html)
+- **Panel de administración:** `/admin.html` (ajusta umbral y pesos; requiere token)
+
 Endpoints de la API:
 - `GET /api/status` — último snapshot y probabilidad de caída
 - `GET /api/history` — últimos 100 snapshots (serie temporal)
-- `GET /api/alerts` — alertas pendientes
+- `GET /api/alerts` — alertas pendientes · `?all=1` incluye las ya enviadas
 - `GET /api/config` — configuración actual · `POST /api/config` (requiere token)
 
 ---
@@ -28,11 +32,15 @@ gráfica del precio, métricas del mercado y un feed de alertas.
 
 ## Estado del proyecto
 
-🚧 **En construcción (iteración 2).** Ya está **desplegado y funcionando en vivo**:
-base de datos D1 con migraciones, API conectada a D1 (status/history/alerts/config),
-tablero que consume la API en tiempo real (gauge, gráfica y alertas con datos), modelo
-con tests que pasan y generador de datos demo. Pendiente: conectar el muestreo real de
-Binance mediante Worker con cron y afinar el panel de administración.
+🚧 **En construcción (iteración 3).** Desplegado y funcionando en vivo:
+- Base de datos **D1** con migraciones y API conectada (status/history/alerts/config).
+- Tablero en tiempo real (gauge, gráfica de precio, alertas).
+- **Modelo cableado a la configuración**: los pesos y el umbral se leen de la tabla
+  `config` y se ajustan desde el panel de administración (`/admin.html`).
+- **Worker cron** `agc-p2p-cron` desplegado con disparador cada 5 minutos (`*/5 * * * *`),
+  que captura, calcula y almacena snapshots en D1 (cae a datos demo si Binance falla).
+
+Pendiente: afinar la ingesta real de Binance desde el Worker y las notificaciones.
 
 ## Arquitectura (resumen)
 
@@ -63,10 +71,9 @@ Binance mediante Worker con cron y afinar el panel de administración.
 
 ```
 p2p-drop-radar/
-├─ public/            Tablero (frontend estático)
-│  ├─ index.html · style.css · script.js
-├─ admin/             Panel de administración
-│  ├─ index.html · style.css · script.js
+├─ public/            Frontend estático (tablero + panel admin)
+│  ├─ index.html · style.css · script.js   (tablero)
+│  └─ admin.html · admin.css · admin.js     (panel de administración, /admin.html)
 ├─ functions/api/     API (Pages Functions)
 │  ├─ status.js · history.js · alerts.js · config.js
 ├─ src/               Lógica de servidor

@@ -14,6 +14,7 @@ ui_shots/
 # Cloudflare / Wrangler
 .wrangler/
 dist/
+wrangler.cron.toml   # config temporal del Worker cron (no se versiona)
 
 # Perfil aislado del navegador para capturas
 _edge_profile/

@@ -4,17 +4,68 @@
    Módulo reutilizado por el Worker cron (src/worker.js) y por las
    Pages Functions (functions/api/*). Construye un snapshot CANÓNICO
    con las columnas de la tabla `snapshots`, calcula la probabilidad
-   con el modelo y lo inserta en D1. Nunca se rompe: si Binance falla,
-   cae a datos sintéticos (source = 'synthetic').
+   con el modelo (usando los pesos guardados en la tabla `config`) y
+   lo inserta en D1. Nunca se rompe: si Binance falla, cae a datos
+   sintéticos (source = 'synthetic').
    ============================================================ */
 
 'use strict';
 
-import { computeDropProbability } from './model.js';
+import { computeDropProbability, DEFAULT_WEIGHTS } from './model.js';
 import { generateSnapshot, generateSeries } from './data-generator.js';
 
 const BINANCE_P2P_URL =
   'https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search';
+
+// Correspondencia entre las claves de la tabla `config` y las señales
+// que espera el modelo. Ojo: en config, "speed" == "velocity" del modelo.
+const WEIGHT_KEYS = {
+  spread: 'model_weights_spread',
+  velocity: 'model_weights_speed',
+  imbalance: 'model_weights_imbalance',
+  volume: 'model_weights_volume',
+};
+
+/**
+ * Lee los pesos del modelo desde la tabla `config`.
+ * Cae a los valores por defecto si la fila no existe o si la DB falla.
+ * @param {Object} env  Entorno con binding DB.
+ * @returns {Promise<Object>} pesos { spread, velocity, imbalance, volume }.
+ */
+export async function loadWeights(env) {
+  const defaults = { ...DEFAULT_WEIGHTS };
+  if (!env || !env.DB) return defaults;
+  try {
+    const keys = Object.values(WEIGHT_KEYS);
+    const placeholders = keys.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(
+      `SELECT key, value FROM config WHERE key IN (${placeholders})`
+    ).bind(...keys).all();
+
+    const byKey = {};
+    for (const row of results) byKey[row.key] = parseFloat(row.value);
+
+    const weights = {};
+    for (const [signal, cfgKey] of Object.entries(WEIGHT_KEYS)) {
+      const v = byKey[cfgKey];
+      weights[signal] = Number.isFinite(v) ? v : defaults[signal];
+    }
+    return weights;
+  } catch {
+    return defaults;
+  }
+}
+
+/**
+ * Calcula la probabilidad de caída usando los pesos guardados en config.
+ * @param {Object} env      Entorno con binding DB.
+ * @param {Object} signals  Señales { spread, velocity, imbalance, volume }.
+ * @returns {Promise<number>} probabilidad 0..100.
+ */
+export async function calculateProbability(env, signals) {
+  const weights = await loadWeights(env);
+  return computeDropProbability(signals, weights);
+}
 
 /** Consulta un lado del mercado en Binance P2P. */
 async function fetchBinanceSide(tradeType) {
@@ -39,14 +90,14 @@ async function fetchBinanceSide(tradeType) {
 }
 
 /** Convierte el objeto demo (data-generator) al snapshot canónico. */
-function canonicalFromDemo(demo, isoTs) {
+function canonicalFromDemo(demo, isoTs, weights = DEFAULT_WEIGHTS) {
   const spread = demo.spread;
   const price = demo.price;
   const bestBuy = +(price * (1 - spread / 2)).toFixed(2);
   const bestSell = +(price * (1 + spread / 2)).toFixed(2);
   const volSell = demo.volumeUsdt;
   const volBuy = Math.round(volSell * (demo.buyAds / Math.max(1, demo.sellAds)));
-  const probability = computeDropProbability(demo.signals);
+  const probability = computeDropProbability(demo.signals, weights);
   return {
     timestamp: isoTs || new Date(demo.timestamp).toISOString(),
     best_buy_price: bestBuy,
@@ -63,13 +114,14 @@ function canonicalFromDemo(demo, isoTs) {
   };
 }
 
-/** Construye un snapshot sintético (modo demo). */
-export function buildSyntheticSnapshot() {
-  return canonicalFromDemo(generateSnapshot());
+/** Construye un snapshot sintético (modo demo) con los pesos de config. */
+export async function buildSyntheticSnapshot(env) {
+  const weights = await loadWeights(env);
+  return canonicalFromDemo(generateSnapshot(), undefined, weights);
 }
 
 /** Construye un snapshot real a partir de Binance P2P. */
-export async function buildRealSnapshot(prevPrice = null) {
+export async function buildRealSnapshot(prevPrice = null, weights = DEFAULT_WEIGHTS) {
   const [buy, sell] = await Promise.all([
     fetchBinanceSide('BUY'),
     fetchBinanceSide('SELL'),
@@ -100,7 +152,7 @@ export async function buildRealSnapshot(prevPrice = null) {
     imbalance,
     volume: Math.min(1, volSell / 50000),
   };
-  const probability = computeDropProbability(signals);
+  const probability = computeDropProbability(signals, weights);
 
   return {
     timestamp: new Date().toISOString(),
@@ -132,13 +184,14 @@ async function lastMidPrice(env) {
   }
 }
 
-/** Intenta un snapshot real; si falla, cae a sintético. */
+/** Intenta un snapshot real; si falla, cae a sintético. Usa pesos de config. */
 export async function buildSnapshot(env) {
+  const weights = await loadWeights(env);
   try {
     const prev = await lastMidPrice(env);
-    return await buildRealSnapshot(prev);
+    return await buildRealSnapshot(prev, weights);
   } catch {
-    return buildSyntheticSnapshot();
+    return canonicalFromDemo(generateSnapshot(), undefined, weights);
   }
 }
 
@@ -213,11 +266,13 @@ export async function seedIfEmpty(env, points = 48) {
   ).first();
   if (count && count.n > 0) return false;
 
+  const weights = await loadWeights(env);
+  const threshold = await getAlertThreshold(env);
   const series = generateSeries(points);
   for (const demo of series) {
-    const snap = canonicalFromDemo(demo);
+    const snap = canonicalFromDemo(demo, undefined, weights);
     await insertSnapshot(env, snap);
-    if (snap.probability >= 70) await insertAlert(env, snap, 'browser');
+    if (snap.probability >= threshold) await insertAlert(env, snap, 'browser');
   }
   return true;
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Panel de control — P2P Drop Radar</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin.css" />
 </head>
 <body>
   <header class="topbar">
@@ -13,7 +13,7 @@
       <h1>PANEL DE CONTROL</h1>
       <span class="pair">P2P Drop Radar · Admin</span>
     </div>
-    <a class="back" href="../public/index.html">← Volver al tablero</a>
+    <a class="back" href="index.html">← Volver al tablero</a>
   </header>
 
   <div class="disclaimer" role="note">
@@ -23,53 +23,48 @@
   </div>
 
   <main class="admin-wrap">
-    <!-- Autenticación -->
+    <!-- Acceso -->
     <section class="card">
       <h2 class="card-title">ACCESO</h2>
       <label class="field">
         <span>Token de administrador</span>
         <input type="password" id="admin-token" placeholder="ADMIN_TOKEN…" autocomplete="off" />
       </label>
-      <p class="hint" id="auth-hint">Introduce el token para poder guardar cambios.</p>
+      <p class="hint">El token se usa solo para guardar; no se almacena en el navegador.</p>
     </section>
 
-    <!-- Configuración -->
+    <!-- Parámetros del modelo -->
     <section class="card">
       <h2 class="card-title">PARÁMETROS DEL MODELO</h2>
       <form id="config-form">
         <label class="field">
           <span>Umbral de alerta (%)</span>
-          <input type="number" id="dropThreshold" min="0" max="100" step="1" value="70" />
+          <input type="number" id="alert_threshold" min="0" max="100" step="1" value="70" />
         </label>
         <label class="field">
-          <span>Intervalo del worker (minutos)</span>
-          <input type="number" id="intervalMinutes" min="1" max="60" step="1" value="5" />
+          <span>Intervalo de sondeo (minutos) — informativo</span>
+          <input type="number" id="poll_interval" value="5" disabled />
         </label>
 
         <fieldset class="weights">
-          <legend>Pesos de las señales (suman 1)</legend>
+          <legend>Pesos de las señales del modelo</legend>
           <label class="field">
             <span>Spread</span>
-            <input type="number" id="w-spread" min="0" max="1" step="0.05" value="0.25" />
+            <input type="number" id="model_weights_spread" min="0" max="1" step="0.05" value="0.30" />
           </label>
           <label class="field">
-            <span>Velocidad</span>
-            <input type="number" id="w-velocity" min="0" max="1" step="0.05" value="0.35" />
+            <span>Velocidad (speed)</span>
+            <input type="number" id="model_weights_speed" min="0" max="1" step="0.05" value="0.25" />
           </label>
           <label class="field">
             <span>Desequilibrio</span>
-            <input type="number" id="w-imbalance" min="0" max="1" step="0.05" value="0.25" />
+            <input type="number" id="model_weights_imbalance" min="0" max="1" step="0.05" value="0.25" />
           </label>
           <label class="field">
             <span>Volumen</span>
-            <input type="number" id="w-volume" min="0" max="1" step="0.05" value="0.15" />
+            <input type="number" id="model_weights_volume" min="0" max="1" step="0.05" value="0.20" />
           </label>
-        </fieldset>
-
-        <fieldset class="channels">
-          <legend>Canales de alerta</legend>
-          <label class="check"><input type="checkbox" id="ch-browser" checked /> Navegador</label>
-          <label class="check"><input type="checkbox" id="ch-telegram" /> Telegram</label>
+          <p class="hint" id="weights-sum">Suma de pesos: 1.00</p>
         </fieldset>
 
         <button type="submit" class="btn">GUARDAR CONFIGURACIÓN</button>
@@ -77,13 +72,21 @@
       </form>
     </section>
 
-    <!-- Registro -->
+    <!-- Registro de alertas -->
     <section class="card">
-      <h2 class="card-title">REGISTRO</h2>
-      <pre class="log" id="log">Panel listo. (Esqueleto inicial — persistencia en próximas iteraciones.)</pre>
+      <div class="row-between">
+        <h2 class="card-title">REGISTRO DE ALERTAS</h2>
+        <button type="button" class="btn-mini" id="reload-logs">↻ Recargar</button>
+      </div>
+      <div class="log" id="log">Cargando alertas…</div>
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <footer class="footer">
+    <span>P2P Drop Radar · Panel de administración</span>
+    <a href="index.html">Tablero</a>
+  </footer>
+
+  <script src="admin.js"></script>
 </body>
 </html>
