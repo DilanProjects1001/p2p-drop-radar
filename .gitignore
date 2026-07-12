@@ -8,8 +8,10 @@ node_modules/
 # Registros
 *.log
 
-# Capturas de progreso (evidencia local, no se versiona)
-ui_shots/
+# Capturas de progreso (evidencia local). Se ignoran salvo las que usa el README.
+ui_shots/*
+!ui_shots/dashboard.png
+!ui_shots/admin.png
 
 # Cloudflare / Wrangler
 .wrangler/

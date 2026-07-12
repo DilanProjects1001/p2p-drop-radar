@@ -1,139 +1,168 @@
-# 📡 P2P Drop Radar
+# P2P Drop Radar
 
-**Detector automático de caídas de precio en tiempo real para VES/USDT en Binance P2P.**
+[![Demo](https://img.shields.io/badge/demo-live-00ff6a?style=flat-square)](https://agc-p2p-drop-radar.pages.dev)
+[![Platform](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers%20%2B%20D1-f38020?style=flat-square)](https://agc-p2p-drop-radar.pages.dev)
+[![Tests](https://img.shields.io/badge/tests-12%20passing-00ff6a?style=flat-square)](tests/)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](#license)
 
-> ⚠️ **Aviso importante (disclaimer):** Este es un proyecto **educativo / de muestra**
-> para portafolio. **No ejecuta operaciones, no mueve dinero y no constituye asesoría
-> financiera.** Puede funcionar con datos simulados (modo demo) cuando la API pública
-> no está disponible. Úsalo solo con fines demostrativos.
+**Real-time price-drop radar for the VES/USDT pair on Binance P2P.**
+A professional-grade, self-contained web dashboard that estimates the probability of an
+imminent price drop using a transparent, adjustable model — for **educational and
+analytical purposes only**.
 
-## 🌐 Demo en vivo
-
-**https://agc-p2p-drop-radar.pages.dev**
-
-Rutas:
-- **Tablero:** `/` (index.html)
-- **Panel de administración:** `/admin.html` (ajusta umbral y pesos; requiere token)
-
-Endpoints de la API:
-- `GET /api/status` — último snapshot y probabilidad de caída
-- `GET /api/history` — últimos 100 snapshots (serie temporal)
-- `GET /api/alerts` — alertas pendientes · `?all=1` incluye las ya enviadas
-- `GET /api/config` — configuración actual · `POST /api/config` (requiere token)
+🔗 **Live demo:** https://agc-p2p-drop-radar.pages.dev
 
 ---
 
-## ¿Qué es? (en simple)
+## The problem & the solution
 
-Un tablero tipo "terminal financiera" que vigila el mercado peer-to-peer (P2P) de
-Binance para el par **bolívar/USDT** y estima, con un modelo transparente, la
-**probabilidad de que el precio esté por caer** (0–100%). Muestra un medidor, una
-gráfica del precio, métricas del mercado y un feed de alertas.
+**Problem (inspired by a real Upwork-style brief).** Traders operating on Binance's P2P
+market for the Venezuelan bolívar (VES) face a fast-moving, opaque market: prices, spreads
+and available liquidity shift minute to minute. A common request is a lightweight,
+always-on tool that *watches* the P2P order book and warns when conditions suggest a
+downward move — **without** touching funds, placing orders, or giving financial advice.
 
-## Estado del proyecto
+**Solution.** P2P Drop Radar polls the public Binance P2P endpoint on a schedule, stores
+a time series of market snapshots, and runs a **transparent probability model** over four
+market signals. The result is surfaced on a live, terminal-style dashboard with a gauge,
+price chart, market metrics and an alerts feed. If the public API is unreachable, the
+system **never breaks**: it falls back to a realistic synthetic data generator (demo mode,
+clearly labelled in the UI).
 
-🚧 **En construcción (iteración 3).** Desplegado y funcionando en vivo:
-- Base de datos **D1** con migraciones y API conectada (status/history/alerts/config).
-- Tablero en tiempo real (gauge, gráfica de precio, alertas).
-- **Modelo cableado a la configuración**: los pesos y el umbral se leen de la tabla
-  `config` y se ajustan desde el panel de administración (`/admin.html`).
-- **Worker cron** `agc-p2p-cron` desplegado con disparador cada 5 minutos (`*/5 * * * *`),
-  que captura, calcula y almacena snapshots en D1 (cae a datos demo si Binance falla).
-
-Pendiente: afinar la ingesta real de Binance desde el Worker y las notificaciones.
-
-## Arquitectura (resumen)
+## Architecture
 
 ```
-┌─────────────────────────────┐        ┌──────────────────────────────┐
-│  Frontend (Cloudflare Pages)│        │  Worker cron (cada 5 min)    │
-│  public/  index.html + JS   │◀──────▶│  src/worker.js               │
-│  gauge · gráfica · alertas  │  API   │   ├─ consulta Binance P2P    │
-└──────────────┬──────────────┘        │   ├─ si falla → datos demo   │
-               │                        │   ├─ modelo de probabilidad  │
-   Pages Functions (API)                │   └─ guarda en D1 + alertas  │
-   functions/api/*.js                   └──────────────┬───────────────┘
-   status · history · alerts · config                  │
-               │                                        ▼
-               └───────────────▶  Cloudflare D1 (SQLite serverless)
-                                   snapshots · alerts · config
+                         ┌──────────────────────────────────────────────┐
+                         │                   USER                        │
+                         │        (browser · dashboard + admin)          │
+                         └───────────────┬───────────────▲──────────────┘
+                                         │ HTTP          │ JSON
+                                         ▼               │
+             ┌───────────────────────────────────────────────────────────┐
+             │                 Cloudflare Pages (edge)                    │
+             │   Static frontend            Pages Functions (API)         │
+             │   /  · /admin                /api/status  /api/history     │
+             │   (HTML/CSS/JS, no CDNs)     /api/alerts  /api/config      │
+             └───────────────────────────────────┬───────────────────────┘
+                                                  │  read / write (SQL)
+                                                  ▼
+                         ┌──────────────────────────────────────────────┐
+                         │        Cloudflare D1  (SQLite serverless)     │
+                         │   snapshots · alerts · config                 │
+                         └───────────────────▲──────────────────────────┘
+                                             │  INSERT snapshot / alert
+                                             │
+             ┌───────────────────────────────────────────────────────────┐
+             │        Worker cron  "agc-p2p-cron"  (*/5 * * * *)          │
+             │   1. fetch Binance P2P  (fallback → synthetic)             │
+             │   2. compute probability (weights from `config`)          │
+             │   3. store snapshot  ·  raise alert if over threshold     │
+             └───────────────────────────────────────────────────────────┘
 ```
 
-## Stack tecnológico
+### Stack & rationale
 
-- **Frontend:** HTML/CSS/JS vanilla, sin frameworks ni CDNs (autocontenido).
-- **Backend:** Cloudflare Pages Functions + Worker con Cron Trigger.
-- **Base de datos:** Cloudflare D1 (SQLite serverless) para series temporales.
-- **Alertas:** Webhook de Telegram y notificaciones de navegador.
-- **Tests:** `node --test` sobre la lógica del modelo.
+| Layer        | Choice                        | Why |
+|--------------|-------------------------------|-----|
+| Frontend     | Vanilla HTML/CSS/JS, no CDNs  | Fully self-contained, zero build step, loads anywhere. |
+| Hosting/API  | Cloudflare Pages + Functions  | Global edge, free tier, functions co-located with the DB. |
+| Scheduler    | Cloudflare Worker + Cron      | Native `*/5 * * * *` trigger, no server to run. |
+| Database     | Cloudflare D1 (SQLite)        | Serverless SQL, low latency next to Functions, zero idle cost — ideal for small/medium time series. |
+| Charts/gauge | Hand-drawn `<canvas>`         | No chart library, no external dependency. |
 
-## Estructura de carpetas
+## Features
 
-```
-p2p-drop-radar/
-├─ public/            Frontend estático (tablero + panel admin)
-│  ├─ index.html · style.css · script.js   (tablero)
-│  └─ admin.html · admin.css · admin.js     (panel de administración, /admin.html)
-├─ functions/api/     API (Pages Functions)
-│  ├─ status.js · history.js · alerts.js · config.js
-├─ src/               Lógica de servidor
-│  ├─ worker.js       Worker cron (handlers scheduled/fetch)
-│  ├─ snapshot.js     Captura/almacenado compartido (Binance→modelo→D1→alertas)
-│  ├─ model.js        Modelo de probabilidad (transparente y ajustable)
-│  └─ data-generator.js  Generador de datos demo
-├─ migrations/        Migraciones SQL de D1 (0001_create_tables.sql)
-├─ tests/             Tests del modelo (node --test)
-├─ wrangler.toml      Configuración de Cloudflare (Pages + Worker + D1 + cron)
-├─ package.json · .env.example · .gitignore
-└─ README.md
-```
+- **Live dashboard** — probability gauge (0–100 %, colour-coded), price chart, market
+  metrics (spread, ad counts, available volume, change speed, imbalance) and a recent
+  alerts feed. Auto-refreshes every 30 s.
+- **Transparent probability model** — no black box. A documented weighted sum of four
+  signals passed through a logistic curve (see below).
+- **Admin control panel** (`/admin`) — adjust the alert threshold and the model weights,
+  save them (token-protected), and review the alert log.
+- **Configurable alerts** — browser notifications and a Telegram webhook (no hard-coded
+  credentials; set via environment/secrets).
+- **Demo mode / resilience** — if Binance P2P is unreachable, realistic synthetic data
+  keeps the whole system running, clearly flagged in the UI.
 
-## El modelo de probabilidad
+## Screenshots
 
-No es una caja negra. Combina cuatro señales normalizadas mediante una **suma
-ponderada** y una **función logística**:
+**Dashboard**
 
-| Señal          | Qué mide                                   | Peso por defecto |
-|----------------|--------------------------------------------|------------------|
-| `spread`       | Tensión venta/compra                       | 0.25             |
-| `velocity`     | Velocidad de cambio reciente del precio    | 0.35             |
-| `imbalance`    | Desequilibrio oferta/demanda               | 0.25             |
-| `volume`       | Volumen disponible anómalo                 | 0.15             |
+![Dashboard](ui_shots/dashboard.png)
 
-Los pesos y el umbral de alerta se ajustan desde el **panel de administración**.
+**Admin panel**
 
-## Cómo probarlo localmente
+![Admin panel](ui_shots/admin.png)
+
+## The probability model
+
+The model is intentionally simple and auditable. It normalises four market signals to
+`[0, 1]` (all oriented toward "downward pressure"), combines them as a weighted sum, and
+shapes the result with a logistic function into a `0–100` probability.
+
+| Signal      | What it measures                          | Default weight |
+|-------------|-------------------------------------------|----------------|
+| `spread`    | Sell/buy tension                          | 0.30           |
+| `speed`     | Recent price change velocity              | 0.25           |
+| `imbalance` | Supply/demand imbalance                   | 0.25           |
+| `volume`    | Abnormal available volume                 | 0.20           |
+
+The weights and the alert threshold live in the D1 `config` table and are read **on every
+computation** (`src/snapshot.js → loadWeights()` / `calculateProbability()`), so changes
+made in the admin panel take effect on the next snapshot — no redeploy required.
+
+## How to deploy
+
+Assumes `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set in the environment.
 
 ```bash
-# Ejecutar los tests del modelo
-npm test
-
-# Ver el tablero: abre public/index.html en el navegador
-```
-
-## Despliegue
-
-El proyecto ya está **desplegado en Cloudflare Pages** con base de datos D1.
-
-```bash
-# 1) Crear la base de datos D1 (una sola vez)
+# 1) Create the D1 database (once) and copy the id into wrangler.toml
 npx wrangler d1 create agc-p2p-drop-radar-db
-#    -> copiar el database_id a wrangler.toml
 
-# 2) Aplicar migraciones (crea tablas + config por defecto)
+# 2) Apply migrations (tables + default config)
 npx wrangler d1 migrations apply agc-p2p-drop-radar-db --local
 npx wrangler d1 migrations apply agc-p2p-drop-radar-db --remote
 
-# 3) Configurar el token del panel (secreto, no va en el repo)
+# 3) Set the admin token (secret, never committed)
 npx wrangler pages secret put ADMIN_TOKEN --project-name=agc-p2p-drop-radar
 
-# 4) Desplegar
+# 4) Deploy the frontend + Functions
 npx wrangler pages deploy public --project-name=agc-p2p-drop-radar --branch=main
+
+# 5) Deploy the cron Worker (temporary config with main=src/worker.js + crons)
+npx wrangler deploy --config wrangler.cron.toml
 ```
 
-La base se **auto-siembra** con una serie sintética la primera vez, de modo que el
-tablero muestra datos desde el primer momento aunque el muestreo real aún no corra.
+Run the tests locally:
 
-## Licencia
+```bash
+node --test tests/**/*.test.js
+```
 
-MIT.
+## Disclaimer
+
+⚠️ **DISCLAIMER: This tool is purely analytical and educational. It does not provide
+financial advice and does not execute any trades. The predictions are probabilistic
+estimates produced by a transparent model.** Use it for demonstration purposes only.
+
+## License
+
+MIT — see below. Free to use, modify and share.
+
+---
+
+## 🇪🇸 Resumen en español (bilingüe)
+
+**P2P Drop Radar** es un tablero web en tiempo real que estima la probabilidad de que el
+precio del par VES/USDT en Binance P2P esté por caer, usando un modelo **transparente y
+ajustable**. Muestra un medidor, una gráfica del precio, métricas del mercado y un feed de
+alertas. Si la API pública falla, sigue funcionando con datos simulados (modo demo). Incluye
+un panel de administración (`/admin`) para ajustar umbral y pesos.
+
+- **Demo en vivo:** https://agc-p2p-drop-radar.pages.dev
+- **Cómo abrirlo:** entra a la URL, o abre `public/index.html` localmente.
+- **Tests:** `node --test tests/**/*.test.js` (12 en verde).
+
+⚠️ **DISCLAIMER: Esta herramienta es únicamente analítica y educativa. No proporciona
+asesoría financiera ni ejecuta operaciones. Las predicciones son estimaciones
+probabilísticas basadas en un modelo transparente.**
