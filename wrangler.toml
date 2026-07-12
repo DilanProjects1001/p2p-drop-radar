@@ -1,0 +1,40 @@
+# ============================================================
+# Configuración de Cloudflare para P2P Drop Radar
+# ------------------------------------------------------------
+# El proyecto tiene DOS piezas desplegables:
+#   1) Cloudflare Pages: sirve /public (tablero) y /functions (API).
+#   2) Worker programado (src/worker.js) con cron cada 5 minutos.
+#
+# NOTA: el nombre lleva el prefijo obligatorio "agc-".
+# ============================================================
+
+name = "agc-p2p-drop-radar"
+main = "src/worker.js"
+compatibility_date = "2024-09-01"
+
+# Carpeta estática que sirve Cloudflare Pages (tablero + panel).
+pages_build_output_dir = "public"
+
+# --- Cron Trigger: ejecuta el worker cada 5 minutos ---
+[triggers]
+crons = ["*/5 * * * *"]
+
+# --- Base de datos D1 (SQLite serverless) para series temporales ---
+# Justificación: D1 es SQLite serverless nativo de Cloudflare, ideal para
+# series temporales pequeñas/medianas con consultas SQL sencillas, coste
+# cero en reposo y baja latencia junto al Worker. Evita montar una base
+# externa y mantiene todo dentro del mismo entorno de despliegue.
+[[d1_databases]]
+binding = "DB"
+database_name = "p2p_drop_radar"
+database_id = "REEMPLAZAR_CON_ID_REAL"   # se genera con: wrangler d1 create p2p_drop_radar
+
+# --- Variables de entorno NO secretas (valores por defecto) ---
+[vars]
+DROP_THRESHOLD = "70"        # % a partir del cual se dispara una alerta
+INTERVAL_MINUTES = "5"       # frecuencia lógica del muestreo
+
+# --- Secretos (NO se ponen aquí; se cargan con `wrangler secret put`) ---
+# ADMIN_TOKEN          -> token del panel de administración
+# TELEGRAM_BOT_TOKEN   -> token del bot de Telegram para alertas
+# TELEGRAM_CHAT_ID     -> chat destino de las alertas

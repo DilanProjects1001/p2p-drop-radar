@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2P Drop Radar — Detector de caídas de precio VES/USDT</title>
+  <meta name="description" content="Radar en tiempo real de caídas de precio en Binance P2P (VES/USDT). Proyecto educativo de portafolio." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Barra superior -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1>P2P&nbsp;DROP&nbsp;RADAR</h1>
+      <span class="pair">VES/USDT · Binance&nbsp;P2P</span>
+    </div>
+    <div class="status-pill" id="mode-pill" title="Origen de datos">
+      <span class="dot"></span>
+      <span id="mode-label">CONECTANDO…</span>
+    </div>
+  </header>
+
+  <!-- Aviso legal -->
+  <div class="disclaimer" role="note">
+    ⚠️ Proyecto <strong>educativo / de muestra</strong>. No ejecuta operaciones, no mueve
+    dinero y no constituye asesoría financiera. Los datos pueden ser simulados (modo demo).
+  </div>
+
+  <main class="grid">
+    <!-- Gauge de probabilidad -->
+    <section class="card card-gauge" aria-label="Probabilidad de caída">
+      <h2 class="card-title">PROBABILIDAD DE CAÍDA</h2>
+      <div class="gauge-wrap">
+        <canvas id="gauge" width="240" height="240"></canvas>
+        <div class="gauge-center">
+          <span id="gauge-value">--</span><span class="gauge-unit">%</span>
+        </div>
+      </div>
+      <p class="gauge-hint" id="gauge-hint">Esperando datos…</p>
+    </section>
+
+    <!-- Gráfica histórica -->
+    <section class="card card-chart" aria-label="Precio histórico">
+      <h2 class="card-title">PRECIO (VES por USDT)</h2>
+      <canvas id="price-chart" width="600" height="220"></canvas>
+      <p class="chart-hint" id="price-last">--</p>
+    </section>
+
+    <!-- Métricas de mercado -->
+    <section class="card card-metrics" aria-label="Métricas de mercado">
+      <h2 class="card-title">MÉTRICAS DE MERCADO</h2>
+      <ul class="metrics">
+        <li><span class="m-label">Spread</span><span class="m-value" id="m-spread">--</span></li>
+        <li><span class="m-label">Anuncios</span><span class="m-value" id="m-ads">--</span></li>
+        <li><span class="m-label">Volumen disp.</span><span class="m-value" id="m-volume">--</span></li>
+        <li><span class="m-label">Velocidad cambio</span><span class="m-value" id="m-velocity">--</span></li>
+        <li><span class="m-label">Desequilibrio</span><span class="m-value" id="m-imbalance">--</span></li>
+        <li><span class="m-label">Actualizado</span><span class="m-value" id="m-updated">--</span></li>
+      </ul>
+    </section>
+
+    <!-- Feed de alertas -->
+    <section class="card card-alerts" aria-label="Alertas recientes">
+      <h2 class="card-title">ALERTAS RECIENTES</h2>
+      <ul class="alerts" id="alerts-feed">
+        <li class="alert-empty">Sin alertas todavía.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>P2P Drop Radar · Proyecto de portafolio AGC</span>
+    <a href="admin/index.html">Panel de control</a>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

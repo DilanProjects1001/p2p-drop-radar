@@ -1,0 +1,23 @@
+{
+  "name": "p2p-drop-radar",
+  "version": "0.1.0",
+  "description": "Detector en tiempo real de caídas de precio VES/USDT en Binance P2P. Proyecto educativo de portafolio (no ejecuta operaciones ni da asesoría financiera).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "dev": "npx --yes wrangler pages dev public --compatibility-date=2024-01-01"
+  },
+  "keywords": [
+    "binance",
+    "p2p",
+    "ves",
+    "usdt",
+    "cloudflare",
+    "d1",
+    "dashboard",
+    "portafolio"
+  ],
+  "author": "DilanProjects1001",
+  "license": "MIT"
+}

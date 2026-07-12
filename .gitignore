@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno y secretos
+.env
+.dev.vars
+
+# Registros
+*.log
+
+# Capturas de progreso (evidencia local, no se versiona)
+ui_shots/
+
+# Cloudflare / Wrangler
+.wrangler/
+dist/
+
+# Perfil aislado del navegador para capturas
+_edge_profile/
+
+# Sistema
+.DS_Store
+Thumbs.db

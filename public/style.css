@@ -1,0 +1,196 @@
+/* ============================================================
+   P2P Drop Radar — Estilos (tema oscuro tipo terminal financiera)
+   Paleta: fondo casi negro, acentos verde fósforo y ámbar.
+   Autocontenido: sin CDNs, sin fuentes externas.
+   ============================================================ */
+
+:root {
+  --bg:        #0a0a0a;
+  --bg-card:   #101512;
+  --bg-card-2: #0d1210;
+  --border:    #1c2b22;
+  --green:     #00ff6a;
+  --green-dim: #0a9c48;
+  --amber:     #ffb000;
+  --red:       #ff3b3b;
+  --text:      #c8f7d8;
+  --text-dim:  #5f7a6b;
+  --mono: "Cascadia Code", "Consolas", "SF Mono", "Menlo", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  /* Rejilla sutil tipo terminal */
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(0,255,106,0.05), transparent 55%),
+    linear-gradient(transparent 95%, rgba(0,255,106,0.03) 100%);
+  padding-bottom: 40px;
+}
+
+/* ---------- Barra superior ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(0,255,106,0.04), transparent);
+}
+.brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand h1 {
+  font-size: 20px;
+  letter-spacing: 2px;
+  margin: 0;
+  color: var(--green);
+  text-shadow: 0 0 12px rgba(0,255,106,0.4);
+}
+.brand-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px var(--green);
+  animation: pulse 2s infinite;
+}
+.pair { color: var(--text-dim); font-size: 13px; letter-spacing: 1px; }
+
+.status-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  background: var(--bg-card);
+}
+.status-pill .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+}
+.status-pill.live .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.status-pill.demo .dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+/* ---------- Aviso legal ---------- */
+.disclaimer {
+  margin: 16px 24px 0;
+  padding: 10px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  background: var(--bg-card-2);
+}
+.disclaimer strong { color: var(--amber); }
+
+/* ---------- Rejilla principal ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  padding: 20px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--green-dim), transparent);
+  opacity: .6;
+}
+.card-title {
+  margin: 0 0 14px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.card-gauge { grid-column: 1; }
+.card-chart { grid-column: 2; }
+.card-metrics { grid-column: 1; }
+.card-alerts { grid-column: 2; }
+
+/* ---------- Gauge ---------- */
+.gauge-wrap {
+  position: relative;
+  width: 240px; height: 240px;
+  margin: 0 auto;
+}
+.gauge-center {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 46px; font-weight: 700;
+  color: var(--green);
+  text-shadow: 0 0 16px rgba(0,255,106,0.5);
+}
+.gauge-unit { font-size: 22px; color: var(--text-dim); margin-left: 2px; }
+.gauge-hint { text-align: center; color: var(--text-dim); font-size: 13px; margin: 10px 0 0; }
+
+/* ---------- Gráfica ---------- */
+#price-chart { width: 100%; height: auto; display: block; }
+.chart-hint { color: var(--text-dim); font-size: 12px; margin: 8px 0 0; }
+
+/* ---------- Métricas ---------- */
+.metrics { list-style: none; margin: 0; padding: 0; }
+.metrics li {
+  display: flex; justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.metrics li:last-child { border-bottom: none; }
+.m-label { color: var(--text-dim); font-size: 13px; }
+.m-value { color: var(--green); font-weight: 600; }
+
+/* ---------- Alertas ---------- */
+.alerts { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.alerts li {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--green-dim);
+  background: var(--bg-card-2);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.alert-empty { color: var(--text-dim); border-left-color: var(--border) !important; }
+
+/* ---------- Pie ---------- */
+.footer {
+  display: flex; justify-content: space-between; align-items: center;
+  max-width: 1200px; margin: 20px auto 0; padding: 0 24px;
+  color: var(--text-dim); font-size: 12px;
+}
+.footer a { color: var(--green-dim); text-decoration: none; }
+.footer a:hover { color: var(--green); text-decoration: underline; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 780px) {
+  .grid { grid-template-columns: 1fr; }
+  .card-gauge, .card-chart, .card-metrics, .card-alerts { grid-column: 1; }
+  .brand h1 { font-size: 17px; }
+}

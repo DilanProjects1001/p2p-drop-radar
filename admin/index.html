@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de control — P2P Drop Radar</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1>PANEL DE CONTROL</h1>
+      <span class="pair">P2P Drop Radar · Admin</span>
+    </div>
+    <a class="back" href="../public/index.html">← Volver al tablero</a>
+  </header>
+
+  <div class="disclaimer" role="note">
+    🔒 Zona de administración. Requiere <strong>token de acceso</strong>
+    (variable de entorno <code>ADMIN_TOKEN</code>). No se guardan credenciales
+    en el código.
+  </div>
+
+  <main class="admin-wrap">
+    <!-- Autenticación -->
+    <section class="card">
+      <h2 class="card-title">ACCESO</h2>
+      <label class="field">
+        <span>Token de administrador</span>
+        <input type="password" id="admin-token" placeholder="ADMIN_TOKEN…" autocomplete="off" />
+      </label>
+      <p class="hint" id="auth-hint">Introduce el token para poder guardar cambios.</p>
+    </section>
+
+    <!-- Configuración -->
+    <section class="card">
+      <h2 class="card-title">PARÁMETROS DEL MODELO</h2>
+      <form id="config-form">
+        <label class="field">
+          <span>Umbral de alerta (%)</span>
+          <input type="number" id="dropThreshold" min="0" max="100" step="1" value="70" />
+        </label>
+        <label class="field">
+          <span>Intervalo del worker (minutos)</span>
+          <input type="number" id="intervalMinutes" min="1" max="60" step="1" value="5" />
+        </label>
+
+        <fieldset class="weights">
+          <legend>Pesos de las señales (suman 1)</legend>
+          <label class="field">
+            <span>Spread</span>
+            <input type="number" id="w-spread" min="0" max="1" step="0.05" value="0.25" />
+          </label>
+          <label class="field">
+            <span>Velocidad</span>
+            <input type="number" id="w-velocity" min="0" max="1" step="0.05" value="0.35" />
+          </label>
+          <label class="field">
+            <span>Desequilibrio</span>
+            <input type="number" id="w-imbalance" min="0" max="1" step="0.05" value="0.25" />
+          </label>
+          <label class="field">
+            <span>Volumen</span>
+            <input type="number" id="w-volume" min="0" max="1" step="0.05" value="0.15" />
+          </label>
+        </fieldset>
+
+        <fieldset class="channels">
+          <legend>Canales de alerta</legend>
+          <label class="check"><input type="checkbox" id="ch-browser" checked /> Navegador</label>
+          <label class="check"><input type="checkbox" id="ch-telegram" /> Telegram</label>
+        </fieldset>
+
+        <button type="submit" class="btn">GUARDAR CONFIGURACIÓN</button>
+        <p class="hint" id="save-hint"></p>
+      </form>
+    </section>
+
+    <!-- Registro -->
+    <section class="card">
+      <h2 class="card-title">REGISTRO</h2>
+      <pre class="log" id="log">Panel listo. (Esqueleto inicial — persistencia en próximas iteraciones.)</pre>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
