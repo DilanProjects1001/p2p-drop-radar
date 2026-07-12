@@ -1,27 +1,38 @@
 /* ============================================================
-   GET /api/history — Serie temporal histórica de precios/probabilidad.
+   GET /api/history — Serie temporal (últimos 100 snapshots).
    ------------------------------------------------------------
-   ITERACIÓN 1: responde una serie vacía. En próximas iteraciones
-   consultará la tabla `snapshots` de D1 con paginación por rango.
+   Devuelve los últimos 100 snapshots ordenados por fecha DESC.
+   Auto-siembra la base si está vacía (modo demo).
    ============================================================ */
 
 'use strict';
 
-export async function onRequestGet(context) {
-  const { env } = context;
+import { seedIfEmpty } from '../../src/snapshot.js';
 
-  const payload = {
-    status: 'ok',
-    mode: 'demo',
-    points: [], // { ts, price, probability }
-    note: 'Histórico vacío en el esqueleto inicial.',
-    hasDb: Boolean(env && env.DB),
-  };
-
+function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
+    status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
     },
   });
+}
+
+export async function onRequestGet(context) {
+  const { env } = context;
+
+  if (!env || !env.DB) {
+    return json({ status: 'ok', mode: 'demo', points: [] });
+  }
+
+  try {
+    await seedIfEmpty(env);
+    const { results } = await env.DB.prepare(
+      'SELECT * FROM snapshots ORDER BY timestamp DESC LIMIT 100'
+    ).all();
+    return json({ status: 'ok', count: results.length, points: results });
+  } catch (err) {
+    return json({ status: 'error', points: [], message: String(err && err.message ? err.message : err) }, 200);
+  }
 }

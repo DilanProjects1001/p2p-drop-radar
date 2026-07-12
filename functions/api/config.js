@@ -1,34 +1,19 @@
 /* ============================================================
-   /api/config — Configuración del sistema.
+   /api/config — Configuración del sistema (tabla `config` de D1).
    ------------------------------------------------------------
-   GET  : devuelve la configuración pública actual (umbrales, pesos,
-          intervalo). No expone secretos.
-   POST : actualiza la configuración. Protegido con token simple
-          (cabecera Authorization: Bearer <ADMIN_TOKEN>). El token
-          se guarda como variable de entorno, nunca en el código.
+   GET  : devuelve todos los pares clave/valor de config.
+   POST : actualiza claves de config. Protegido con token simple
+          (cabecera Authorization: Bearer <ADMIN_TOKEN>). El token vive
+          en una variable de entorno, nunca en el código.
 
-   ITERACIÓN 1: la configuración se mantiene en memoria/valores por
-   defecto; en próximas iteraciones se persiste en D1.
+   Por seguridad, GET nunca expone credenciales sensibles (los tokens
+   de Telegram se devuelven enmascarados).
    ============================================================ */
 
 'use strict';
 
-// Configuración por defecto (se persistirá en D1 más adelante).
-const DEFAULT_CONFIG = {
-  dropThreshold: 70, // % a partir del cual se dispara alerta
-  intervalMinutes: 5, // frecuencia del worker
-  weights: { spread: 0.25, velocity: 0.35, imbalance: 0.25, volume: 0.15 },
-  channels: { browser: true, telegram: false },
-};
-
-/** Verifica el token de administrador de forma segura. */
-function isAuthorized(request, env) {
-  const expected = env && env.ADMIN_TOKEN;
-  if (!expected) return false; // sin token configurado => denegado.
-  const header = request.headers.get('authorization') || '';
-  const token = header.replace(/^Bearer\s+/i, '').trim();
-  return token.length > 0 && token === expected;
-}
+// Claves cuyo valor no debe exponerse en claro por GET.
+const SENSITIVE = new Set(['telegram_bot_token', 'telegram_chat_id']);
 
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -40,9 +25,32 @@ function json(payload, status = 200) {
   });
 }
 
-export async function onRequestGet() {
-  // La configuración pública no expone secretos.
-  return json({ status: 'ok', config: DEFAULT_CONFIG });
+function isAuthorized(request, env) {
+  const expected = env && env.ADMIN_TOKEN;
+  if (!expected) return false;
+  const header = request.headers.get('authorization') || '';
+  const token = header.replace(/^Bearer\s+/i, '').trim();
+  return token.length > 0 && token === expected;
+}
+
+export async function onRequestGet(context) {
+  const { env } = context;
+  if (!env || !env.DB) return json({ status: 'ok', config: {} });
+
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT key, value FROM config ORDER BY key'
+    ).all();
+    const config = {};
+    for (const row of results) {
+      config[row.key] = SENSITIVE.has(row.key)
+        ? (row.value ? '••••••' : '')
+        : row.value;
+    }
+    return json({ status: 'ok', config });
+  } catch (err) {
+    return json({ status: 'error', message: String(err && err.message ? err.message : err) }, 200);
+  }
 }
 
 export async function onRequestPost(context) {
@@ -50,6 +58,9 @@ export async function onRequestPost(context) {
 
   if (!isAuthorized(request, env)) {
     return json({ status: 'error', message: 'No autorizado.' }, 401);
+  }
+  if (!env || !env.DB) {
+    return json({ status: 'error', message: 'Base de datos no disponible.' }, 503);
   }
 
   let body;
@@ -59,11 +70,32 @@ export async function onRequestPost(context) {
     return json({ status: 'error', message: 'JSON inválido.' }, 400);
   }
 
-  // ITERACIÓN 1: validación básica y eco. La persistencia en D1 llega después.
-  const updated = { ...DEFAULT_CONFIG, ...body };
-  return json({
-    status: 'ok',
-    message: 'Configuración recibida (persistencia pendiente).',
-    config: updated,
-  });
+  // Acepta un objeto plano { clave: valor } y actualiza cada clave existente.
+  const entries = Object.entries(body || {});
+  if (entries.length === 0) {
+    return json({ status: 'error', message: 'Cuerpo vacío.' }, 400);
+  }
+
+  try {
+    const stmts = entries.map(([key, value]) =>
+      env.DB.prepare(
+        'INSERT INTO config (key, value) VALUES (?, ?) ' +
+        'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+      ).bind(String(key), String(value))
+    );
+    await env.DB.batch(stmts);
+
+    const { results } = await env.DB.prepare(
+      'SELECT key, value FROM config ORDER BY key'
+    ).all();
+    const config = {};
+    for (const row of results) {
+      config[row.key] = SENSITIVE.has(row.key)
+        ? (row.value ? '••••••' : '')
+        : row.value;
+    }
+    return json({ status: 'ok', message: 'Configuración actualizada.', config });
+  } catch (err) {
+    return json({ status: 'error', message: String(err && err.message ? err.message : err) }, 200);
+  }
 }
